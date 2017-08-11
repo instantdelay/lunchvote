@@ -11,7 +11,7 @@
  *@
 @main("Welcome to Play") {
 
-   <h1>LunchVote</h1>
+   <h1>LunchVote <span class="qual"><span class="beta">Beta</span> <span class="alpha">Alpha</span> Tech Demo</span></h1>
 
    <div id="app">
       <template v-if="state === 'nominate'">
@@ -19,10 +19,24 @@
          <ul>
             <li v-for="item in nominations">{{item}}</li>
          </ul>
-         <label>Submit an idea: </label><input type="text" id="nom" v-on:keydown.enter="submit">
+         <label>Submit an idea: </label><input type="text" id="nom" v-on:keydown.enter="submitNomination">
       </template>
       <template v-else-if="state === 'vote'">
-         <h3>Voting</h3>
+         <h3>Vote</h3>
+         <ul>
+            <li v-for="(item, idx) in nominations">
+               <input type="text" size="3" :id="'nom-' + idx">
+               <label :for="'nom-' + idx">{{item}}</label>
+            </li>
+         </ul>
+         <input type="button" value="Submit Vote" v-on:click="submitBallot">
+
+         <h3>Current Results</h3>
+         <ol>
+            <li v-for="place in results">
+               {{place}}
+            </li>
+         </ol>
       </template>
 
       <br><br>

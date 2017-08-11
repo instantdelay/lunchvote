@@ -2,8 +2,8 @@ package controllers
 
 import javax.inject.Inject
 
+import actors.Clerk.{BeginVoting, ResetElection}
 import actors.ClientAgentActor
-import actors.ElectionActor.Nominate
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.util.Timeout
@@ -29,6 +29,16 @@ class LobbyController @Inject()(cc: ControllerComponents)(implicit actorSystem:A
         ClientAgentActor.props(clerk, out)
       })
     }
+  }
+
+  def beginVoting = Action {
+    actorSystem.actorSelection("/user/clerk") ! BeginVoting
+    Ok("")
+  }
+
+  def reset = Action {
+    actorSystem.actorSelection("/user/clerk") ! ResetElection
+    Ok("")
   }
 
 }

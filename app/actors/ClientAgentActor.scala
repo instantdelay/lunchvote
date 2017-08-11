@@ -1,17 +1,14 @@
 package actors
 
-import actors.ElectionActor._
-import actors.LobbyActor.{Join, OccupantsChanged}
+import actors.Clerk._
 import akka.actor.{Actor, ActorRef, Props}
-import play.api.libs.json.{JsObject, JsValue, Json, Writes}
-
-import scala.reflect.ClassTag
+import com.instantdelay.vote.Pref
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 object ClientAgentActor {
   def props(lobby:ActorRef, out:ActorRef) = Props(new ClientAgentActor(lobby, out))
 }
-
-case class JsNominate(name:String)
 
 /**
   * Receives messages from a client and acts on behalf of the client. Sends messages back to the client through `out`
@@ -19,54 +16,49 @@ case class JsNominate(name:String)
   */
 class ClientAgentActor(clerk:ActorRef, out:ActorRef) extends Actor {
 
-//  implicit val actorRefWrites = new Writes[ActorRef] {
-//    def writes(bar: ActorRef) = {
-//      Json.obj(
-//        "event" -> "nominated",
-//        "name" -> bar.toString()
-//      )
-//    }
-//  }
-//  implicit val nominationWrites = new Writes[NominationData] {
-//    def writes(d:NominationData) = Json.obj(
-//      "state" -> "nominate",
-//      "noms" -> d.noms
-//    )
-//  }
-//  implicit val w1 = Json.writes[Nominated]
-//  def conditionalWriterOf[T: Writes](implicit t:ClassTag[T]): Any => Option[JsValue] = (obj:Any) => {
-//    if (t.runtimeClass.isInstance(obj)) {
-//      Some(implicitly[Writes[T]].writes(obj.asInstanceOf[T]))
-//    }
-//    else None
-//  }
-//  val writers = Seq(
-//    conditionalWriterOf[NominationData],
-//    conditionalWriterOf[Nominated]).toIterator
-
   context.system.eventStream.subscribe(self, classOf[ElectionEvent])
-  clerk ! AskStatus
+  context.system.eventStream.subscribe(self, classOf[Clerk.Data])
+  clerk ! ReportState
 
-  override def receive = {
-    case clientMsg:JsObject => {
+  private implicit val prefReads: Reads[Pref[String]] = (
+    (JsPath \ "id").read[String] and
+    (JsPath \ "rank").read[Int]
+  )(Pref.apply(_, _))
+  private implicit val ballotReads = Json.reads[SubmitBallot]
+
+  override def receive: Receive = {
+    case clientMsg:JsObject =>
       (clientMsg \ "action").as[String] match {
         case "nominate" =>
           clerk ! Nominate((clientMsg \ "name").as[String])
+        case "submitBallot" =>
+          clerk ! ballotReads.reads(clientMsg).get
       }
-    }
+
+    // States
     case d:NominationData =>
       out ! Json.obj(
         "state" -> "nominate",
         "noms" -> d.noms
       )
+    case d:VotingData =>
+      out ! Json.obj(
+        "state" -> "vote",
+        "noms" -> d.noms
+      )
+
+    // Election Events
     case e:Nominated =>
       out ! Json.obj(
         "event" -> "nominated",
         "name" -> e.name
       )
-//    case other =>
-//      out ! writers.flatMap(_(other)).find(_=>true)
-//        .getOrElse(Json.toJson("no_converter" -> other.toString))
+    case ResultsUpdate(results) =>
+      out ! Json.obj(
+        "event" -> "results",
+        "results" -> results
+      )
+
   }
 
 }

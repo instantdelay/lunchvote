@@ -6,6 +6,10 @@
 # An example controller showing a sample home page
 GET     /                           controllers.LobbyController.index
 GET     /stream                     controllers.LobbyController.stream
+
+GET     /lobby/beginVoting          controllers.LobbyController.beginVoting
+GET     /lobby/reset                controllers.LobbyController.reset
+
 # An example controller showing how to use dependency injection
 GET     /count                      controllers.CountController.count
 # An example controller showing how to write asynchronous code
